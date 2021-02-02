@@ -1,3 +1,0 @@
-/home/fengxx/PointCloud/PointsCloud/build/CMakeFiles/rebuild_cache.dir
-/home/fengxx/PointCloud/PointsCloud/build/CMakeFiles/edit_cache.dir
-/home/fengxx/PointCloud/PointsCloud/build/CMakeFiles/PointsCloud.dir
