@@ -1,0 +1,29 @@
+{
+	"folders": [
+		{
+			"path": "PointsCloud"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"thread": "cpp",
+			"ostream": "cpp",
+			"*.txx": "cpp",
+			"string_view": "cpp",
+			"tuple": "cpp",
+			"iostream": "cpp",
+			"vector": "cpp",
+			"bitset": "cpp",
+			"chrono": "cpp",
+			"algorithm": "cpp",
+			"memory": "cpp",
+			"limits": "cpp",
+			"streambuf": "cpp",
+			"typeinfo": "cpp",
+			"sstream": "cpp",
+			"array": "cpp",
+			"initializer_list": "cpp",
+			"utility": "cpp"
+		}
+	}
+}
