@@ -2,11 +2,12 @@
 
 PciCom::PciCom()
 {
-     
+      
 }
 
 PciCom::~PciCom()
 {
+     
 }
 
 bool PciCom::Initialize()

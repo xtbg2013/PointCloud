@@ -7,16 +7,24 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include "PointsCloud.h"
-#include "glog/logging.h"
+//#include "glog/logging.h"
 #include "DataDefine.h"
 #include "TaskManager.h"
 #include <string.h>
 
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+#include "IpcCom.h"
+#include <pcl/point_types.h>
+#include "transmsgstruct.h"
 using namespace std;
 
 TaskManager g_TaskManager;
 
 
+/*
  
 void InitGoogleLog()
 {
@@ -35,19 +43,19 @@ void ShutDownGoogleLog()
 	 google::ShutdownGoogleLogging();
 }
 
-
+*/
 bool InitTask()
 {
-	system("mkdir -p ./pcd");
+	//system("mkdir -p ./pcd");
 	if(!g_TaskManager.InitilizeCom())
 	{
-		LOG(ERROR) << "Initialize point cloud task communication failure";
+		//LOG(ERROR) << "Initialize point cloud task communication failure";
 		return false;
 	}
 	
 	if(!g_TaskManager.Launch())
 	{
-		LOG(ERROR) << "Initialize point cloud task failure";
+		//LOG(ERROR) << "Initialize point cloud task failure";
 		return false;
 	}
 	
@@ -99,27 +107,140 @@ void AppControl()
 	cin>>select;
 }
 
-struct ZPoints
-{
-    float x;
-    float y;
-    float z;
-    float intensity;
-};
+ void Test()
+ {
+	int32 flag = 0x12345678;
+	int16 lengh = 48;
+	int8 data[54] = {0};
+	int8 offset = 0;
+	
+	memcpy(data+offset,&flag,4);
+	offset += 4;
 
- 
+	memcpy(data+offset,&lengh,2);
+	offset += 2;
 
- 
+    MFD_Control ctl;
+	ctl.validMfd.keyValid = 1;
+	ctl.mfd3.page = 4;
+	ctl.mfd3.subPage = 1;
+	 
+
+	memcpy(data+offset,&ctl,sizeof(MFD_Control));
+	offset += sizeof(MFD_Control);
+
+
+
+   for(int i = 0;i<10;i++)
+   {
+	   g_TaskManager.ProcessRecvMessage(data,sizeof(data));
+   }
+
+ }
+
 int main()
 {
-	
-	LOG(INFO) << "Enter APP";
-	InitGoogleLog();
+
+
+ #if 0
+  //	LOG(INFO) << "Enter APP";
+	//InitGoogleLog();
 	//CreateDeamon();
 	InitTask();
 	AppControl();
 	StopTask();
-	LOG(INFO) << "Exit APP";
+	//LOG(INFO) << "Exit APP";
+#endif
 	
+/*
+    IpcFIFOCom::Instance()->Initialize(O_WRONLY);
+	//for(int i = 0;i<120;i++)
+	int count = 0;
+
+	while(true)
+	{
+		IpcMsg m;
+		m.msgType =  ++count;
+		m.systemControl = 1;
+		m.workControl = 2;
+		m.laserControl = 3;
+		m.renderingControl = 4;
+		
+		
+		IpcFIFOCom::Instance()->Write(m);
+		cout<<count<<endl;
+
+		sleep(1);
+	}
+*/
+#if 1
+ 
+ 
+	//for(int i = 0;i<120;i++)
+	int count = 0;
+
+	while(true)
+	{
+		IpcMsg m;
+		m.msgType =  ++count;
+		m.systemControl = 1;
+		m.workControl = 2;
+		m.laserControl = 3;
+		m.renderingControl = 4;
+		
+		if(IpcCom::Instance()->Write(m)>0)
+			cout<<count<<endl;
+
+		sleep(1);
+	}
+	#endif
+	//IpcCom::Instance()->Release();;
+
+	
+/*
+    //共享内存写
+	cout<<"this is a test"<<endl;
+    
+
+
+    Point_XYZI buffer[10] = {0};
+
+	int value = 0;
+	while(true)
+	{
+		 
+	    buffer[0].x = buffer[0].y = buffer[0].z = value++;
+			 
+		int length = IpcShareMemory::Instance()->Write(buffer,10*sizeof(Point_XYZI));
+		if(length > 0)
+		{
+			cout<<"count = "<<value<<endl;
+			cout<<"Points: x= "<<buffer[0].x<<" y="<<buffer[0].y<<" z="<<buffer[0].z<<endl;
+			
+		}
+		usleep(1000000);
+	}
+*/
+	
+
+   //共享内存读取
+   
+   /*
+    
+	vector<PointXYZI> points;
+	int count = 0;
+	while(true)
+	{
+		
+		int length = IpcShareMemory::Instance()->Read(points);
+		if(length > 0)
+		{
+			cout<<"recv count = "<<++count<<endl;
+			cout<<"point count = "<<points.size() <<endl;
+		}
+		usleep(100000);
+	}
+	*/
+  
 	return 0;
 }

@@ -3,7 +3,7 @@
 #include "../protocol/DataDefine.h"
 class PciCom
 {
-private: 
+public: 
     Point_XYZI m_points[MAX_POINTS_OF_PCID];
 public:
     PciCom();

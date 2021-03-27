@@ -79,6 +79,25 @@ void MessageBase::SetCheckSum(uint32 checkSum)
     m_checkSum = checkSum;
 }
 
+/**************************************
+ * Desription:
+ * 功能：计算校验和，累加校验
+ * 参数： 
+ * 方法：所有数据进行累加 
+ * 返回：累加值
+ **************************************/
+/*
+uint32 MessageBase::CheckSum(int8 *pBuffer,int32 length)
+{
+    uint16 sum = 0;
+    for(int32 count = 0;count<length;count++) 
+    {
+        sum+= pBuffer[count];
+    }
+    return sum;
+}
+*/
+
 ////////////////////////智能计算平台----接口控制模块//////////////////////////////////////////////////
 
 MPIC_ConfigMessage::MPIC_ConfigMessage(/* args */)
@@ -96,11 +115,11 @@ MPIC_Config MPIC_ConfigMessage::GetConfig()
     return m_config;
 
 }
-void MPIC_ConfigMessage::SetConfig(MPIC_Config config)
+void MPIC_ConfigMessage::SetConfig(const MPIC_Config &config)
 {
     m_config = config;
     m_dataLength = sizeof(MPIC_Config);
-    memcpy(&m_data,&m_config,m_dataLength);
+    memcpy(m_data,&m_config,m_dataLength);
 }
 
 
@@ -400,4 +419,43 @@ uint32 TargetInfoMessage::AssembleMessage(int8*pBuffer,uint32 length)//组装消
      */
     return 0;
 
+}
+
+
+
+Message::Message(/* args */)
+{
+    m_msgFlag = 0;              //消息头
+    m_msglength = 0;            //消息长度 
+    memset(m_msgData,0,sizeof(m_msgData));
+}
+Message::~Message()
+{
+
+}
+
+uint32  Message::GetMsgFlag()
+{
+    return m_msgFlag;
+}
+
+void    Message::SetMsgFlag(uint32 flag)
+{
+    m_msgFlag =  flag;
+}
+
+void*   Message::GetData(int32 &length)//获取消息数据
+{
+    length =  m_msglength;
+    return m_msgData;
+
+}
+
+void   Message::SetData(void *pBuffer,int32 length)//设置消息数据
+{
+    if(pBuffer == nullptr || length> MAX_MSG_LEN)
+        return;
+
+    memcpy(m_msgData,pBuffer,length);
+    m_msglength = length;
 }

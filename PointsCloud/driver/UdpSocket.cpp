@@ -67,10 +67,27 @@ UdpClentSocket::UdpClentSocket(string Ip,int port)
     m_local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     m_local_addr.sin_port = htons(port);
     m_local_addr_len = sizeof(m_local_addr_len);
-    
+ 
+}
 
+UdpClentSocket::UdpClentSocket(string Ip,int remotePort,int localPort)
+{
+    bzero(&m_server_addr,sizeof(m_server_addr));
+    m_server_addr.sin_family = AF_INET;
+    m_server_addr.sin_addr.s_addr = inet_addr(Ip.c_str());
+    m_server_addr.sin_port = htons(remotePort);
+    m_server_addr_len = sizeof(m_server_addr);
+
+    
+    bzero(&m_local_addr,sizeof(m_local_addr));
+    m_local_addr.sin_family = AF_INET;
+    m_local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    m_local_addr.sin_port = htons(localPort);
+    m_local_addr_len = sizeof(m_local_addr_len);
 
 }
+
+
 UdpClentSocket::~UdpClentSocket()
 {
 
@@ -80,6 +97,10 @@ bool UdpClentSocket::Initialize()
     m_socket_fd = socket(AF_INET,SOCK_DGRAM,0);
     if(m_socket_fd < 0)
         return false;
+    //timeval timeout;
+   // timeout.tv_sec = 0;
+   // timeout.tv_usec = 1000;
+   // setsockopt(m_socket_fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeval));
    
     if(bind(m_socket_fd,(sockaddr*)&m_local_addr,sizeof(m_local_addr)) < 0 )
     {

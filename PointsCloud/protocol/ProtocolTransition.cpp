@@ -1,5 +1,59 @@
 #include "ProtocolTransition.h"
 #include <string.h>
+#include <iostream>
+#include <unistd.h>
+using namespace std;
+
+
+ProtocolParse::ProtocolParse(/* args */)
+{
+}
+
+ProtocolParse::~ProtocolParse()
+{
+}
+//解析接收的消息
+bool ProtocolParse::ParseMessage(int8 *pBuffer,int32 length,Message &msg)
+{
+    if(pBuffer == nullptr || (length-MSG_FLAG_LEN -MSG_FLAG_LEN) > MAX_MSG_LEN)
+        return false;
+    int16 offset = 0;
+    //消息头
+    uint32 msgFlag = 0;
+    memcpy(&msgFlag,pBuffer+offset,MSG_FLAG_LEN);
+    offset += MSG_FLAG_LEN;
+    msg.SetMsgFlag(msgFlag);
+
+    //消息长度
+    uint16 msgLen = 0;
+    memcpy(&msgLen,pBuffer+offset,MSG_LENGTH_LEN);
+    offset += MSG_LENGTH_LEN;
+   
+    //消息内容
+    msg.SetData(pBuffer+offset,msgLen);
+    offset += msgLen;
+    
+    return true;
+}  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ProtocolTransition::ProtocolTransition()
 {
 }
@@ -25,7 +79,6 @@ uint32   ProtocolTransition::CheckSum(int8 *pBuffer,int32 length)
     }
     return sum;
 }
-
 uint32 ProtocolTransition::GetMsgMaxLength()
 {
     return (MSG_HEAD_FIELD_LEN + MSG_LENGTH_FIELD_LEN + MSG_TYPE_FIELD_LEN + MSG_MAX_DATA_LEN + MSG_CHECK_SUM_FIELD_LEN);
@@ -77,7 +130,7 @@ bool ProtocolTransition::ParseMessage(int8 *pBuffer,uint32 length,MessageBase &m
     msg.SetMsgType(msgType);
     //消息内容
 
-    uint32 dataLength = msg.GetLength() - MSG_TYPE_FIELD_LEN;
+    uint32 dataLength = msg.GetLength() - MSG_TYPE_FIELD_LEN - MSG_CHECK_SUM_FIELD_LEN;
     if(dataLength < 0)
         return false;
     msg.SetData(pBuffer+offset,dataLength);
@@ -129,17 +182,32 @@ uint32 ProtocolTransition::AssembleMessage(MessageBase msg,int8*pBuffer,uint32 l
     return offset;
 }
 
+uint32 ProtocolTransition::GetAllFrames(uint32 pointCount)
+{
+    uint32 allFrames = 0;
+    if(pointCount % MAX_POINTS_PER_FRAME != 0)
+    {
+        allFrames = pointCount / MAX_POINTS_PER_FRAME + 1;
+    }
+    else
+    {
+        allFrames = pointCount / MAX_POINTS_PER_FRAME;
+    }
+    return allFrames;
+
+}
+
+void ProtocolTransition::TranslateICMPPointsDataToUdpMessage(const ICMP_PointsData &data,MessageBase &msg)
+{
+    msg.SetHeader(MSG_HEAD);
+    msg.SetLength(sizeof(ICMP_PointsData) + MSG_CHECK_SUM_FIELD_LEN2);
+    msg.SetMsgType(MSG_ICMP_TYPE_POINTCLOUD);
+    msg.SetData((void*)&data,sizeof(ICMP_PointsData));
+}
+
 uint32 ProtocolTransition::SplitPointsToUdpFrame(Point_XYZI *pData,int size,vector<MessageBase> &msgVector)
 {
-    int allFrames = 0;
-    if(size % MAX_POINTS_PER_FRAME != 0){
-        allFrames = size / MAX_POINTS_PER_FRAME + 1;
-    }
-    else{
-        allFrames = size / MAX_POINTS_PER_FRAME;
-    }
-
-
+    int allFrames = GetAllFrames(size);
     int frameNo = 0;
     int leftPoints = size;
     int offset = 0;
@@ -149,32 +217,33 @@ uint32 ProtocolTransition::SplitPointsToUdpFrame(Point_XYZI *pData,int size,vect
         pointsData.serialNo = ++frameNo;
         pointsData.allframes = allFrames; 
         pointsData.time = 0;
-        pointsData.longitude = 0;   //经度
-        pointsData.latitude = 0;    //纬度
-        pointsData.navigationAltidute = 0;//导航高度
-        pointsData.rollAngle = 0;   //横滚角
-        pointsData.pitchAngle = 0;  //俯仰角
-        pointsData.headingAngle = 0;//航向角
+        pointsData.longitude = 30;   //经度
+        pointsData.latitude = 40;    //纬度
+        pointsData.navigationAltidute = 1000;//导航高度
+        pointsData.rollAngle = 70;   //横滚角
+        pointsData.pitchAngle = 80;  //俯仰角
+        pointsData.headingAngle = 20;//航向角
         pointsData.reserve = 0;
+       
         int copyLength  = 0;
         if(leftPoints >= MAX_POINTS_PER_FRAME)
         {
             copyLength = sizeof(Point_XYZI)*MAX_POINTS_PER_FRAME;
+            leftPoints -= MAX_POINTS_PER_FRAME;
         }
         else
         {
             copyLength = sizeof(Point_XYZI)*leftPoints;
+            leftPoints -= leftPoints;
         }
+        
         memcpy(pointsData.points,pData + offset,copyLength);
-        offset += copyLength;
-        leftPoints -= copyLength;
+        offset += copyLength / sizeof(Point_XYZI);
+       // cout<<"size = "<<size<<" dataLengh = "<<sizeof(Point_XYZI) *size<<" copyLength = "<<copyLength<<" offset = "<< offset<< "  leftPoints = "<<leftPoints<<endl;
+        
 
         MessageBase msg;
-        msg.SetHeader(MSG_HEAD);
-        msg.SetLength(sizeof(ICMP_PointsData) + MSG_CHECK_SUM_FIELD_LEN2);
-        msg.SetMsgType(MSG_ICMP_TYPE_POINTCLOUD);
-        msg.SetData((void*)&pointsData,sizeof(ICMP_PointsData));
-
+        TranslateICMPPointsDataToUdpMessage(pointsData,msg);
         msgVector.push_back(msg);
     }
     

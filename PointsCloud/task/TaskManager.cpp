@@ -1,20 +1,22 @@
 #include "TaskManager.h"
-#include "glog/logging.h"
+//#include "glog/logging.h"
 #include "UdpSocket.h"
 #include "PciCom.h"
 #include "SerialCom.h"
+#include "IpcCom.h"
 #include "DataDefine.h"
 #include "ProtocolTransition.h"
 #include <iostream>
 #include <vector>
 #include <unistd.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
 #include <string>
 #include <sys/time.h>
+#include "PointsProcess.h" 
+#include "StatusManager.h"
+#include <string.h>
 using namespace std;
 
+ 
 //pthread_mutex_t m_mutex;
 
 string GetCurTime()
@@ -38,16 +40,18 @@ string GetCurTime()
 TaskManager::TaskManager()
 {
     m_bTerminate =  false;
-    m_udpDataThread = 0;
     m_udpCtrlThread = 0;
     m_pcieThread    = 0;
-    m_savePcdThread = 0;
+   
     m_pUdpControlCom = new UdpClentSocket(UDP_PLATFORM_IP,UDP_CONFIG_PORT);
     m_pUdpDataCom    = new UdpClentSocket(UDP_PLATFORM_IP,UDP_DATA_PORT);
-    m_pPciCom = new PciCom();
     m_pLaserCom = new SerialCom(LASER_RS422_PORT);
+
+    
     memset(&m_pointsBuffer,0,sizeof(m_pointsBuffer));
     m_pointsBuffer.isUpdated = false;
+
+    
    // pthread_mutex_init(&m_mutex,nullptr);
 }
 
@@ -64,16 +68,13 @@ TaskManager::~TaskManager()
         m_pUdpControlCom = nullptr;
     }
 
-    if(m_pPciCom != nullptr)
-    {
-        delete m_pPciCom;
-        m_pPciCom = nullptr;
-    }
+   
     if(m_pLaserCom != nullptr)
     {
         delete m_pLaserCom;
         m_pLaserCom = nullptr;
     }
+   
 }
 
  
@@ -88,48 +89,56 @@ bool TaskManager::IsTerminate()
 //初始化通信
 bool TaskManager::InitilizeCom()
 {
-    bool result = m_pPciCom->Initialize();
+    bool result = m_pciCom.Initialize();
     if(!result)
     {
-        LOG(ERROR) << "Initialize pcie communication error";
+       // LOG(ERROR) << "Initialize pcie communication error";
     }
     
 
     result =  m_pUdpDataCom->Initialize();
     if(!result)
     {
-        LOG(ERROR) << "Initialize data UDP com with platform error"; 	   
+       // LOG(ERROR) << "Initialize data UDP com with platform error"; 	   
     }
+
     result =  m_pUdpControlCom->Initialize();
     if(!result)
     {
-        LOG(ERROR) << "Initialize control UDP com with platform error"; 	   
+        //LOG(ERROR) << "Initialize control UDP com with platform error"; 	   
     }
-    LOG(INFO) << "Initialize  communication success"; 
+    //LOG(INFO) << "Initialize  communication success"; 
     
     return result;
 }
 
-void *TaskManager::UdpDataThread(void *ptr)
+
+void TaskManager::ProcessRecvMessage(int8 *pBuffer,int32 length)
 {
-    TaskManager *pTask = (TaskManager *)ptr;
-    char data[10000] = {0};
-    while(!pTask->IsTerminate())
-	{
-
-        int length = pTask->m_pUdpDataCom->Read(data,sizeof(data));
-        if(length>0)
+    Message msg;
+    ProtocolParse parser;
+    if(parser.ParseMessage(pBuffer,length,msg)) 
+    {
+        int32 length = 0;
+        MFD_Control *pControl = static_cast<MFD_Control*>(msg.GetData(length));
+        if(pControl != nullptr)
         {
-            cout<<"recv ="<<length<<endl;
-        
-        } 
-		usleep(HIGH_SPEED_DELAY);
-	}
-	
-    //LOG(INFO) << "UDP data task has terminated";
-	return 0;
+            if(StatusManager::Instance()->ProcessMFD(*pControl))
+            {
+                IpcMsg icpMsg;
+                icpMsg.renderingControl = (unsigned char)StatusManager::Instance()->GetRendringControl();
+                //icpMsg.msgType =  static_cast<long>(IpcMsgType::configMessage);
+                //icpMsg.laserControl = configInfo.laserControl;
+                //icpMsg.renderingControl = configInfo.renderingControl;
+                //icpMsg.workControl = configInfo.workControl;
+                //icpMsg.systemControl = configInfo.systemControl;
+              //  IpcCom::Instance()->Write(icpMsg);
+                printf("%d\n",icpMsg.renderingControl);
+                 
+            }
+        }
+    }
 }
-
 void *TaskManager::UdpCtrlThread(void *ptr)
 {
     TaskManager *pTask = (TaskManager *)ptr;
@@ -139,21 +148,11 @@ void *TaskManager::UdpCtrlThread(void *ptr)
         int length = pTask->m_pUdpControlCom->Read(data,sizeof(data));
         if(length > 0 )
         {
-            if(ProtocolTransition::CheckMessage(data,length)) //判断消息是否合法
-            {
-                MessageBase msg;
-                ProtocolTransition::ParseMessage(data,length,msg);
-                if(msg.GetMsgType() == MSG_MPIC_TYPE_CONFIG)
-                {
-                   
-                }
-            }
-            //pTask->m_pUdpControlCom->Write(data,length);
+            pTask->ProcessRecvMessage(data,length);
+           
         }
 		usleep(LOW_SPEED_DELAY);
 	}
-	
-  //  LOG(INFO) << "UDP control task has terminated";
 	return 0;
 }
 
@@ -161,6 +160,7 @@ void TaskManager::SendToPlatform(Point_XYZI *pData,int size)
 {
     vector<MessageBase> msgVector;
     ProtocolTransition::SplitPointsToUdpFrame(pData,size,msgVector);
+    cout<<"All UDP frames = "<<msgVector.size()<<"-------"<< GetCurTime()<<endl; 
     char buffer[MAX_MSG_LEN] = {0};
     for(auto it : msgVector)
     { 
@@ -172,25 +172,7 @@ void TaskManager::SendToPlatform(Point_XYZI *pData,int size)
     }
 }
 
-int TaskManager::SaveToPcd(Point_XYZI *pData,int size)
-{
-    static long frameId = 0;
-    string strFrameId = to_string(frameId++);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);//创建自定义点云格式PointXYZI
-    cloud->header.frame_id = strFrameId;
-    cloud->width = size;
-    cloud->height = 1;
-    cloud->points.resize(cloud->width * cloud->height);
-    for (size_t i = 0; i < cloud->points.size (); ++i) {
-        cloud->points[i].x = pData[i].x;
-        cloud->points[i].y = pData[i].y;
-        cloud->points[i].z = pData[i].z;
-        cloud->points[i].intensity = pData[i].intensity;
-    }
-    string name =  "./pcd/frame"+strFrameId+".pcd"; //
-    pcl::io::savePCDFile (name, *cloud);
-    return 0;
-}
+
  
 void TaskManager::SetPointsBuffer(Point_XYZI *pData,int size)
 {
@@ -201,101 +183,64 @@ void TaskManager::SetPointsBuffer(Point_XYZI *pData,int size)
         m_pointsBuffer.isUpdated = true;
     }
 }
-bool TaskManager::SavePointsToPcd()
-{
-    bool result = false;
-    if(m_pointsBuffer.isUpdated)
-    {
-        SaveToPcd(m_pointsBuffer.pData,m_pointsBuffer.size);
-        m_pointsBuffer.isUpdated = false;
-        result = true;
-    }
-    return result;
-}
 
 void *TaskManager::PcieComThread(void *ptr)
 {
     long long allFrame = 0;
     TaskManager *pTask = (TaskManager *)ptr;
+    
+    int leftFrame = 0;
     while(!pTask->IsTerminate())
     { 
         bool isValid = false;
         int size = 0;
-        Point_XYZI* pData = pTask->m_pPciCom->Read(size);
+        Point_XYZI* pData = pTask->m_pciCom.Read(size);
         isValid = (pData != nullptr && size > 0 && size <= MAX_POINTS_OF_PCID);
         if(isValid)
         {
-            cout<<"All Frames: "<< ++allFrame <<"  Points size: "<<size<<"-------"<< GetCurTime()<<endl;
-            pTask->SetPointsBuffer(pData,size);
+            
+            cout<<"All frames: "<< ++allFrame <<"  points size: "<<size<<"-------"<< GetCurTime()<<endl;
+            int length = IpcShareMemory::Instance()->Write(pData,size*sizeof(Point_XYZI));
+            if(length > 0)
+            {
+                cout<<"更新点云数据："<<length/sizeof(Point_XYZI)<<endl;
+            }
+            else
+            {
+                
+                cout<<"丢包："<<++leftFrame<<endl;
+            }
+            
             pTask->SendToPlatform(pData,size);
             
         }
-        
     }
     return 0;
 }
-
-void *TaskManager::SavePcdThread(void *ptr)
-{
-    TaskManager *pTask = (TaskManager *)ptr;
-    while(!pTask->IsTerminate())
-    { 
-        bool result = pTask->SavePointsToPcd();
-        if(!result)
-        {
-            usleep(10);
-        }
-    }
-    return 0;
-}
-
-
 
 bool TaskManager::Launch()
 {
     bool result = true;
-    int ret = pthread_create(&m_pcieThread, NULL, PcieComThread, this);
+    int ret = 0;
+    ret = pthread_create(&m_pcieThread, NULL, PcieComThread, this);
     if(ret)
     {
-        LOG(ERROR) << "Create PCIE com task unsuccess";
+        //LOG(ERROR) << "Create PCIE com task unsuccess";
         result = false;
     }
     else
     {
-        LOG(INFO) << "Create PCIE com task success";
+        //LOG(INFO) << "Create PCIE com task success";
     }   
-
-
-    ret = pthread_create(&m_savePcdThread, NULL, SavePcdThread, this);
-    if(ret)
-    {
-        LOG(ERROR) << "Create save pcd task unsuccess";
-        result = false;
-    }
-    else
-    {
-        LOG(INFO) << "Create save pcd task success";
-    }   
-
-
-    /*
-    int ret = pthread_create(&m_udpDataThread, NULL, UdpDataThread, this);
-    if(ret) {
-        LOG(ERROR) << "Create UDP Data task unsuccess";
-        result = false;
-    }
-    else{
-        LOG(INFO) << "Create UDP Data task success";
-    }   
-
+   
     ret = pthread_create(&m_udpCtrlThread, NULL, UdpCtrlThread, this);
     if(ret) {
-        LOG(ERROR) << "Create UDP control task unsuccess";
+        //LOG(ERROR) << "Create UDP control task unsuccess";
         result = false;
     }
     else{
-        LOG(INFO) << "Create UDP control task success";
+        //LOG(INFO) << "Create UDP control task success";
     }   
-    */
+    
     return result;
 }

@@ -30,6 +30,7 @@ private:
     int m_socket_fd;
 public:
     UdpClentSocket(string Ip,int port);
+    UdpClentSocket(string Ip,int remotePort,int localPort);
     virtual ~UdpClentSocket();
     virtual bool Initialize();
     virtual void Release();

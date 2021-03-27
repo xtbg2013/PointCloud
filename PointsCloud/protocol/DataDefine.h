@@ -1,18 +1,14 @@
 #pragma once
+#include "../Global.h"
+#include "pciecommmng/transmsgstruct.h"
 
-typedef char           int8;
-typedef short int      int16;
-typedef int            int32;
-typedef long long      int64;
+#define REMOTE_VISUAL_IP "192.168.0.12"         //综合视景软件IP
+#define REMOTE_SERVICE_IP "192.168.0.110"       //平台服务软件IP 
+#define REMOTE_VISUAL_PORT  10086               //综合视景软件通信端口号
+#define REMOTE_SERVICE_PORT 10010               //平台服务软件通信端口号
 
-typedef unsigned char  uint8;
-typedef unsigned short uint16;
-typedef unsigned int   uint32;
-typedef unsigned long long uint64;
-typedef double         float64;
-typedef float          float32;
 
-#define UDP_PLATFORM_IP "192.168.0.12"
+#define UDP_PLATFORM_IP "127.0.0.1"
 #define UDP_CONFIG_PORT 80000
 #define UDP_DATA_PORT   80001
 #define LASER_RS422_PORT     0
@@ -69,7 +65,7 @@ typedef float          float32;
 
 #define   MAX_POINTS_PER_FRAME      0X50  //80个点
 #define   MAX_MSG_LEN               0X2800//10KB
-#define   MAX_POINTS_OF_PCID        512 * 1024
+#define   MAX_POINTS_OF_PCID        512*1024
 
 
 /*
@@ -83,16 +79,7 @@ typedef float          float32;
 */
 #pragma pack(1)  //按字节对齐
 
-/*
-    有效点云数据
-*/
-struct Point
-{
-    float32 x;   //正北方向
-    float32 y;   //正东方向
-    float32 z;   //垂直与地心，指向地心
-    float32 intensity;
-};
+ 
 
 
 /*
@@ -103,7 +90,7 @@ struct MPIC_Config
     uint32 time;
     uint8  systemControl;     //维护自检控制:00：默认  03-维护状态 05-自检状态
     uint8  workControl;       //工作模式控制：默认状态：0x00  0x03:收藏 0x05-巡航避障 0x06-盲降辅助评估 0x09-精准着落引导
-    uint8  laserCOntrol;      //00-保持不变 03-俯仰角增大 05-俯仰角减小 33-方位角增大 35-方位角减小
+    uint8  laserControl;      //00-保持不变 03-俯仰角增大 05-俯仰角减小 33-方位角增大 35-方位角减小
     uint8  renderingControl;  //显示渲染控制：0x00-默认，不作响应 0xFF-模式切换
     uint16 reserve;           //备用
 };
@@ -113,8 +100,7 @@ struct MPIC_Config
 struct ICMP_PointsData
 {
     uint16  serialNo;   //序号
-    uint16  allframes;   //点云数据总帧  
-    
+    uint16  allframes;   //点云数据总帧 
     uint64  time;
     float64 longitude;   //经度
     float64 latitude;    //纬度
@@ -123,17 +109,10 @@ struct ICMP_PointsData
     float32 pitchAngle;  //俯仰角
     float32 headingAngle;//航向角
     uint32  reserve;
-    Point   points[MAX_POINTS_PER_FRAME];
+    Point_XYZI   points[MAX_POINTS_PER_FRAME];
 };
 
-struct ICMP_PointsDatax
-{
-    uint16  serialNo;   //序号
-    uint16  allframes;   //点云数据总帧  
-    uint64  time;
-    float64 longitude;
-    Point   points[MAX_POINTS_PER_FRAME];
-};
+
 /*
     点云数据：信号处理板（SP）--->接口控制模块（IC）
 */
@@ -141,7 +120,7 @@ struct SPIC_PointsData
 {
     uint64  timeStamp;   //时间戳
     uint16  layerNo;     //层号     
-    Point   points[MAX_POINTS_PER_FRAME];
+    Point_XYZI   points[MAX_POINTS_PER_FRAME];
 };
 /*
   目标识别数据：接口控制模块 -> 智能计算平台
@@ -341,5 +320,40 @@ struct LSIC_Status
     uint8  errorStatus;
     uint8 reserve;
 };
+
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+#define MSG_LENGH_RESERVE 42
+#define MSG_FLAG_LEN 4
+#define MSG_LENGTH_LEN 2
+enum class IpcMsgType
+{
+    configMessage
+
+};
+
+struct MFD_Valid
+{
+    int8 keyValid;//0-N/A  1-MFD3有效  2-MFD4有效
+    int8 reserve;
+};
+
+struct MFD_Page
+{
+    int8 page;
+    int8 subPage;
+};
+
+struct MFD_Control
+{
+    int8      reserve[MSG_LENGH_RESERVE];
+    MFD_Valid validMfd;
+    MFD_Page  mfd3;
+    MFD_Page  mfd4;
+};
+
+
+
+
 #pragma pack()
 

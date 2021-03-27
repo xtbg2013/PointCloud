@@ -12,6 +12,8 @@ protected:
     uint32 m_checkSum;             //校验和
     uint16 m_dataLength;           //消息数据段长度：不包含消息头，消息长度，标识，检验和
     int8   m_data[MAX_MSG_LEN];    //消息数据段内容
+protected:
+    //uint32 CheckSum(int8 *pBuffer,int32 length);           //计算校验和
 public:
     MessageBase(/* args */);
     virtual ~MessageBase();
@@ -27,6 +29,8 @@ public:
     uint32  GetCheckSum();
     void    SetCheckSum(uint32 checkSum);
     uint32  GetMsgLength();         //获取消息实际长度
+
+    
 };
 
 ////////////////////////智能计算平台(MP)----接口控制模块(IC)//////////////////////////////////////////////////
@@ -39,7 +43,7 @@ public:
     MPIC_ConfigMessage(/* args */);
     virtual ~MPIC_ConfigMessage();
     MPIC_Config GetConfig();
-    void        SetConfig(MPIC_Config config);
+    void        SetConfig(const MPIC_Config &config);
 };
 
 //接口控制模块-->智能计算平台：点云数据
@@ -163,3 +167,23 @@ public:
     SPIC_PointsData GetPointsData();
 };
  
+
+
+
+class Message
+{
+protected:
+    uint32 m_msgFlag;              //消息头
+    uint16 m_msglength;            //消息长度 
+    int8   m_msgData[MAX_MSG_LEN]; //消息数据内容
+public:
+    Message(/* args */);
+    virtual ~Message();
+   
+    virtual uint32  GetMsgFlag();
+    virtual void    SetMsgFlag(uint32 flag);
+    virtual void*   GetData(int32 &length);//获取消息数据
+    virtual void    SetData(void *pBuffer,int32 length);//设置消息数据
+    
+};
+
