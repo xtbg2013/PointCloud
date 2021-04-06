@@ -79,21 +79,7 @@
 */
 #pragma pack(1)  //按字节对齐
 
- 
 
-
-/*
-   配置项数据：智能计算平台（MP）--->接口控制模块（IC）
-*/
-struct MPIC_Config
-{
-    uint32 time;
-    uint8  systemControl;     //维护自检控制:00：默认  03-维护状态 05-自检状态
-    uint8  workControl;       //工作模式控制：默认状态：0x00  0x03:收藏 0x05-巡航避障 0x06-盲降辅助评估 0x09-精准着落引导
-    uint8  laserControl;      //00-保持不变 03-俯仰角增大 05-俯仰角减小 33-方位角增大 35-方位角减小
-    uint8  renderingControl;  //显示渲染控制：0x00-默认，不作响应 0xFF-模式切换
-    uint16 reserve;           //备用
-};
 /*
     点云数据：接口控制模块（IC）->智能计算平台（MP）
 */
@@ -113,88 +99,6 @@ struct ICMP_PointsData
 };
 
 
-/*
-    点云数据：信号处理板（SP）--->接口控制模块（IC）
-*/
-struct SPIC_PointsData
-{
-    uint64  timeStamp;   //时间戳
-    uint16  layerNo;     //层号     
-    Point_XYZI   points[MAX_POINTS_PER_FRAME];
-};
-/*
-  目标识别数据：接口控制模块 -> 智能计算平台
-*/
-//目标识别信息状态
-struct TargetHeader
-{
-    uint64  timsStamp;   //时间戳
-    float64 longitude;   //经度
-    float64 latitude;    //纬度
-    float64 navigationAltidute;//导航高度
-    float32 rollAngle;   //横滚角
-    float32 pitchAngle;  //俯仰角
-    float32 headingAngle;//航向角
-    float32 reserve1;
-    uint8   highTensionTargetCount;   //高压线目标个数
-    uint8   nonHighTessionTargetCount;//非高压线目标个数
-    uint8   reserve2;
-};
- 
-//目标置信度向量
-struct ConfidenceVector
-{
-    uint8  highTensionLine;
-    uint8  highTensionLineTower;
-    uint8  chimney;
-    uint8  building;
-    uint8  crane;
-    uint8  bridge;
-    uint8  signalTower;
-    uint8  vehicle;
-    uint8  other;
-    uint8  reserve[7];
-};
-//高压线目标信息
-struct HighTensionTarget
-{
-    uint8   type;                //目标类型
-    uint8   confidenceLevel;     //目标置信度
-    ConfidenceVector confidenceVector;//目标置信度向量
-    int32   leftAzimuthAngle;    //高压线左端方位角
-    int32   leftPitchAngle;      //高压线左端俯仰角
-    int32   leftDistance;        //高压线左端距离
-    int32   rightAzimuthAngle;   //高压线右端方位角
-    int32   rightPitchAngle;     //高压线右端俯仰角
-    int32   rightDistance;       //高压线右端距离
-
-    int32   leftAzimuthAngleError; //左端方位角均方根误差
-    int32   leftPitchAngleError;   //左端俯仰角均方根误差
-    int32   leftDistanceError;    //左端距离均方根误差
-    int32   rightAzimuthAngleError; //左端方位角均方根误差
-    int32   rightPitchAngleError;   //左端俯仰角均方根误差
-    int32   rightDistanceError;    //左端距离均方根误差
-};
-
-//非高压线目标信息 
-struct NonHighTensionTarget
-{
-    uint8   type;                //目标类型
-    uint8   confidenceLevel;     //目标可信度
-    ConfidenceVector confidenceVector;//目标置信度向量
-    int32   azimuthAngle;        //目标最高点方位角
-    int32   pitchAngle;          //目标最高点俯仰角
-    int32   distance;            //目标最高点距离
-    int32   azimuthAngleError;   //目标方位角均方根误差
-    int32   pitchAngleError;     //目标俯仰角均方根误差
-    int32   distanceError;       //距离均方根误差
-    int32   outlineHeight;       //轮廓高度
-    int32   outlineWidth;        //轮廓宽度
-    int32   outlineDepth;        //轮廓深度
-    int32   outlineHeightError;  //轮廓高度均方根误差
-    int32   outlineWidthError;   //轮廓宽度均方根误差
-    int32   outlineDepthError;   //轮廓宽度均方根误差、
-};
 
 
 //着落场地形探测数据
@@ -323,15 +227,31 @@ struct LSIC_Status
 
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
-#define MSG_LENGH_RESERVE 42
-#define MSG_FLAG_LEN 4
-#define MSG_LENGTH_LEN 2
+#define MSG_LENGH_RESERVE     42
+#define MSG_FLAG_LEN          4
+#define MSG_LENGTH_LEN        2
+#define MSG_MIN_LEN           48
+#define MSG_TYPE_PAGE_CTL     0X00300025        //MFD控制消息
+#define MSG_TYPE_BIT          0X00300026        //维护自检消息
+#define MSG_TYPE_SET_TIME     0X00300027        //授时消息
+#define MSG_TYPE_TARGET       0X00320001        //目标识别消息
+#define MSG_TYPE_LASER        0X00320002        //目标识别消息
+#define MSG_TYPE_VERSION      0X00320003        //软件版本消息
+#define MSG_TYPE_PAGE_STATUS  0X00320004    //页面切换状态
+
 enum class IpcMsgType
 {
     configMessage
-
 };
 
+//valid MFD 0-N/A  1-MFD3有效  2-MFD4有效
+enum class MFD
+{
+    NA = 0,
+    MFD3, 
+    MFD4
+};
+//Page control
 struct MFD_Valid
 {
     int8 keyValid;//0-N/A  1-MFD3有效  2-MFD4有效
@@ -352,8 +272,144 @@ struct MFD_Control
     MFD_Page  mfd4;
 };
 
+//BIT信息 0-N/A 1-正常 2-自检 3-维护
+enum class BitStatus
+{
+    NA = 0,
+    Normal, 
+    Bit,
+    Maintain
+};
+struct MFD_IC_BIT
+{
+    int8 bitCtl;   
+    int8 reserve2;
+};
 
+//目标识别信息状态
+struct TargetHeader
+{
+    uint64  timsStamp;   //时间戳
+    float64 longitude;   //经度
+    float64 latitude;    //纬度
+    float32 navigationAltidute;//导航高度
+    float32 headingAngle;//横向角
+    float32 pitchAngle;  //俯仰角
+    float32 rollAngle;   //横滚角
+    float32 reserve1;
+    uint8   highTensionTargetCount;   //高压线目标个数
+    uint8   nonHighTessionTargetCount;//非高压线目标个数
+};
+ 
+//目标置信度向量
+struct ConfidenceVector
+{
+    uint8  highTensionLine;       //高压线
+    uint8  highTensionLineTower;  //高压线塔
+    uint8  chimney;               //烟冲
+    uint8  building;              //建筑物
+    uint8  crane;                 //塔吊
+    uint8  bridge;                //桥梁
+    uint8  vehicle;               //车辆
+    uint8  signalTower;           //信号塔
+    uint8  other;
+    uint8  reserve[7];
+};
+//高压线目标信息
+struct HighTensionTarget
+{
+    uint8   type;                //目标类型
+    uint8   confidenceLevel;     //目标置信度
+    ConfidenceVector confidenceVector;//目标置信度向量
 
+    int16   leftAzimuthAngle;    //高压线左端方位角
+    int16   leftPitchAngle;      //高压线左端俯仰角
+    int16   leftDistance;        //高压线左端距离
+    int16   rightAzimuthAngle;   //高压线右端方位角
+    int16   rightPitchAngle;     //高压线右端俯仰角
+    int16   rightDistance;       //高压线右端距离
 
+    int16   leftAzimuthAngleError; //左端方位角均方根误差
+    int16   leftPitchAngleError;   //左端俯仰角均方根误差
+    int16   leftDistanceError;    //左端距离均方根误差
+    int16   rightAzimuthAngleError; //左端方位角均方根误差
+    int16   rightPitchAngleError;   //左端俯仰角均方根误差
+    int16   rightDistanceError;    //左端距离均方根误差
+
+/*
+    int32   leftAzimuthAngle;    //高压线左端方位角
+    int32   leftPitchAngle;      //高压线左端俯仰角
+    int32   leftDistance;        //高压线左端距离
+    int32   rightAzimuthAngle;   //高压线右端方位角
+    int32   rightPitchAngle;     //高压线右端俯仰角
+    int32   rightDistance;       //高压线右端距离
+
+    int32   leftAzimuthAngleError; //左端方位角均方根误差
+    int32   leftPitchAngleError;   //左端俯仰角均方根误差
+    int32   leftDistanceError;    //左端距离均方根误差
+    int32   rightAzimuthAngleError; //左端方位角均方根误差
+    int32   rightPitchAngleError;   //左端俯仰角均方根误差
+    int32   rightDistanceError;    //左端距离均方根误差
+    */
+};
+
+//非高压线目标信息 
+struct NonHighTensionTarget
+{
+    uint8   type;                //目标类型
+    uint8   confidenceLevel;     //目标可信度
+    ConfidenceVector confidenceVector;//目标置信度向量
+    float32   zenithParam1;        //目标最高点参数1
+    float32   zenithParam2;        //目标最高点参数2
+    float32   zenithParam3;        //目标最高点参数3
+    float32   zenithParam1Error;        //目标最高点参数1均方根误差
+    float32   zenithParam2Error;         //目标最高点参数2均方根误差
+    float32   zenithParam3Error;         //目标最高点参数3均方根误差
+    
+    float32   centerParam1;        //中心位置参数1
+    float32   centerParam2;        //中心位置参数2
+    float32   centerParam3;        //中心位置参数3
+    float32   centerParam1Error;   //中心位置参数1均方根误差
+    float32   centerParam2Error;   //中心位置参数2均方根误差
+    float32   centerParam3Error;   //中心位置参数3均方根误差
+
+    float32   outlineHeight;       //轮廓高度
+    float32   outlineWidth;        //轮廓宽度
+    float32   outlineDepth;        //轮廓深度
+    float32   outlineHeightError;  //轮廓高度均方根误差
+    float32   outlineWidthError;   //轮廓宽度均方根误差
+    float32   outlineDepthError;   //轮廓宽度均方根误差
+
+    float32   outlineAngleParam1;       //轮廓角度参数1
+    float32   outlineAngleParam2;       //轮廓角度参数2
+    float32   outlineAngleParam3;       //轮廓角度参数3
+    float32   outlineAngleParam1Error;  //轮廓角度参数1均方根误差
+    float32   outlineAngleParam2Error;  //轮廓角度参数2均方根误差
+    float32   outlineAngleParam3Error;  //轮廓角度参数3均方根误差
+};
+
+//激光雷达状态
+struct LaserStatus
+{
+    int8 laserWorkStatus;    //激光雷达工作状态
+    int8 laserErrorStatus;   //激光雷达故障状态
+};
+
+//软件版本
+struct SoftVersion
+{
+    int8 major;
+    int8 minor;
+    int8 build;
+    int8 reserve1;
+    int8 year1;  //个位
+    int8 year2;  //十位
+    int8 year3;  //百位
+    int8 year4;  //千位
+    int8 day1;   //日个位
+    int8 day2;   //日十位
+    int8 month1; //月百位
+    int8 month2; //月千位
+};
 #pragma pack()
 

@@ -4,11 +4,11 @@
  * 通过队列实现进程间通信，主要用于对点云显示的控制
  ***************************************************************/
 #include <sys/types.h>
-#include <pcl/point_types.h>
+//#include <pcl/point_types.h>
 #include "UdpSocket.h"
 #include <vector>
 using std::vector;
-using namespace pcl;
+//using namespace pcl;
 
 #define MAX_POINTS 512*1024
 #if 0

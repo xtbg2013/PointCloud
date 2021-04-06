@@ -1,4 +1,5 @@
 #include "StatusManager.h"
+#include "../protocol/DataDefine.h"
 
 
 StatusManager *StatusManager::m_pInstance =  nullptr;
@@ -49,14 +50,14 @@ bool StatusManager::CallMFD(const MFD_Page &page)
 bool StatusManager::ProcessMFD(const MFD_Control &control)
 {
     bool result = false;
-    switch (control.validMfd.keyValid)
+    switch ((MFD)control.validMfd.keyValid)
     {
-    case 0:  //N/A
+    case MFD::NA:  //N/A
         break;
-    case 1:  //MFD3有效
+    case MFD::MFD3:  //MFD3有效
         result = CallMFD(control.mfd3);
         break;
-    case 2:  //MFD4有效
+    case MFD::MFD4:  //MFD4有效
         result = CallMFD(control.mfd4);
         break;
     default:

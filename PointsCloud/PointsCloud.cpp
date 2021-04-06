@@ -17,7 +17,7 @@
 #include <sys/msg.h>
 
 #include "IpcCom.h"
-#include <pcl/point_types.h>
+//#include <pcl/point_types.h>
 #include "transmsgstruct.h"
 using namespace std;
 
@@ -138,8 +138,11 @@ void AppControl()
 
  }
 
+  
 int main()
 {
+
+ 
 
 
  #if 0
@@ -173,7 +176,7 @@ int main()
 		sleep(1);
 	}
 */
-#if 1
+#if 0
  
  
 	//for(int i = 0;i<120;i++)

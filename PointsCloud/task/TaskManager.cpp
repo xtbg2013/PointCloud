@@ -47,11 +47,7 @@ TaskManager::TaskManager()
     m_pUdpDataCom    = new UdpClentSocket(UDP_PLATFORM_IP,UDP_DATA_PORT);
     m_pLaserCom = new SerialCom(LASER_RS422_PORT);
 
-    
-    memset(&m_pointsBuffer,0,sizeof(m_pointsBuffer));
-    m_pointsBuffer.isUpdated = false;
-
-    
+     
    // pthread_mutex_init(&m_mutex,nullptr);
 }
 
@@ -127,18 +123,16 @@ void TaskManager::ProcessRecvMessage(int8 *pBuffer,int32 length)
             {
                 IpcMsg icpMsg;
                 icpMsg.renderingControl = (unsigned char)StatusManager::Instance()->GetRendringControl();
-                //icpMsg.msgType =  static_cast<long>(IpcMsgType::configMessage);
-                //icpMsg.laserControl = configInfo.laserControl;
-                //icpMsg.renderingControl = configInfo.renderingControl;
-                //icpMsg.workControl = configInfo.workControl;
-                //icpMsg.systemControl = configInfo.systemControl;
-              //  IpcCom::Instance()->Write(icpMsg);
+                icpMsg.msgType =  static_cast<long>(IpcMsgType::configMessage);
+
+                IpcCom::Instance()->Write(icpMsg);
                 printf("%d\n",icpMsg.renderingControl);
                  
             }
         }
     }
 }
+
 void *TaskManager::UdpCtrlThread(void *ptr)
 {
     TaskManager *pTask = (TaskManager *)ptr;
@@ -172,17 +166,6 @@ void TaskManager::SendToPlatform(Point_XYZI *pData,int size)
     }
 }
 
-
- 
-void TaskManager::SetPointsBuffer(Point_XYZI *pData,int size)
-{
-    if(!m_pointsBuffer.isUpdated)
-    {
-        memcpy(m_pointsBuffer.pData,pData,size*sizeof(Point_XYZI));
-        m_pointsBuffer.size = size;
-        m_pointsBuffer.isUpdated = true;
-    }
-}
 
 void *TaskManager::PcieComThread(void *ptr)
 {

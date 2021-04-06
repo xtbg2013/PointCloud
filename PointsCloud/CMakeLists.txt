@@ -11,7 +11,8 @@ add_subdirectory(unittest)
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS_DEBUG   "$ENV{CXXFLAGS} -o0 -Wall -g -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -o3 -Wall")
-
+SET(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+SET(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
 include_directories(
     ./protocol
     ./task
@@ -20,8 +21,11 @@ include_directories(
     ./communication
     ./draw
     ./driver/pciecommmng
+    ./driver/inc
     ./unittest
     )
+
+    
 
 aux_source_directory(.        SRC_LIST)
 aux_source_directory(task     SRC_TASK)
@@ -45,10 +49,12 @@ add_executable (PointsCloud
                 ${SRC_PCIECOMMING}
                 ) 
  
+#find_package(PCL 1.10 REQUIRED)
+#include_directories( ${PCL_INCLUDE_DIRS} )
+#link_directories(${PCL_LIBRARY_DIRS})
 
-find_package(PCL 1.10 REQUIRED)
-include_directories( ${PCL_INCLUDE_DIRS} )
-link_directories(${PCL_LIBRARY_DIRS})
+
+
 #add_definitions(${PCL_DEFINITIONS})
 
  
@@ -77,9 +83,12 @@ link_directories(${PCL_LIBRARY_DIRS})
 
 # TODO: Add tests and install targets if needed
 #target_link_libraries(PointsCloud   glog)
-target_link_libraries(PointsCloud   pthread dl)
-target_link_libraries(PointsCloud   ${PCL_LIBRARIES})
 
+target_link_libraries(PointsCloud   pthread dl)
+#target_link_libraries(PointsCloud   ${PCL_LIBRARIES})
+target_link_libraries(PointsCloud   ${PROJECT_SOURCE_DIR}/driver/lib/libpciecomm.so)
+
+#message(${PROJECT_SOURCE_DIR}/driver/lib/libpciecomm.so)
 #target_link_libraries(PointsCloud
         #"/usr/lib/x86_64-linux-gnu/libpcl_visualization.so.1.10"
         #libboost_system.so libboost_filesystem.so

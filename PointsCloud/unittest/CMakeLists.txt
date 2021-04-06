@@ -4,11 +4,12 @@
 cmake_minimum_required (VERSION 3.5)
 
 
-project ("unitttest")
-#允许GDB调试
-set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_CXX_FLAGS_DEBUG   "$ENV{CXXFLAGS} -o0 -Wall -g -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -o3 -Wall")
+project ("test")
+
+set (EXECUTABLE_OUTPUT_PATH ../)
+
+aux_source_directory(. SOURCE_PATH)
+
+add_executable(${PROJECT_NAME} ${SOURCE_PATH})
+target_link_libraries(${PROJECT_NAME} PUBLIC gtest pthread)
  
-
-

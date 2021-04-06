@@ -1,6 +1,11 @@
 #pragma once
-#include "pciecommmng/pcietransprocess.h"
 #include "../protocol/DataDefine.h"
+//#define __SL
+#ifdef __SL
+#include "pciecommmng/pcietransprocess.h"
+#else
+#include "inc/PciePublish.h"
+#endif
 class PciCom
 {
 public: 

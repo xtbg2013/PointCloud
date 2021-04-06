@@ -98,6 +98,8 @@ uint32 MessageBase::CheckSum(int8 *pBuffer,int32 length)
 }
 */
 
+#if 0
+
 ////////////////////////智能计算平台----接口控制模块//////////////////////////////////////////////////
 
 MPIC_ConfigMessage::MPIC_ConfigMessage(/* args */)
@@ -363,70 +365,14 @@ bool TargetInfoMessage::ParseMessage(int8 *pBuffer,uint32 length)  //解析接�
     return true;
 
 }
-uint32 TargetInfoMessage::AssembleMessage(int8*pBuffer,uint32 length)//组装消息包
-{
-    /*
-    if(pBuffer == nullptr || length < GetMsgLength()) //buffer 比消息长度小
-        return 0;
-    
-    uint16 offset = 0;
-
-    //消息头
-    memcpy(pBuffer+offset,&m_header,MSG_HEAD_FIELD_LEN);
-    offset += MSG_HEAD_FIELD_LEN;
-
-    //消息长度
-    memcpy(pBuffer+offset,&m_length,MSG_LENGTH_FIELD_LEN);
-    offset += MSG_LENGTH_FIELD_LEN;
-
-    //消息类型
-    memcpy(pBuffer+offset,&m_msgType,MSG_TYPE_FIELD_LEN);
-    offset += MSG_TYPE_FIELD_LEN;
-
-    //目标头
-    int targetHeaderLen = sizeof(TargetHeader);
-    memcpy(pBuffer+offset,&m_targetHeader,targetHeaderLen);
-    offset += targetHeaderLen;
-
-
-    //高压线目标
-    for(auto xx )
-    {
-        HighTensionTarget target;
-        int targetLen = sizeof(HighTensionTarget);
-        memcpy(&target,pBuffer+offset,targetLen);
-        offset += targetLen;
-        AddHighTesionLineTarget(target);
-    }
-
-    //非高压线目标
-    for(int count = 0;count<m_targetHeader.nonHighTessionTargetCount;count++)
-    {
-        NonHighTensionTarget target;
-        int targetLen = sizeof(NonHighTensionTarget);
-        memcpy(&target,pBuffer+offset,targetLen);
-        offset += targetLen;
-        AddNonHighTesionLineTarget(target);
-    }
-
-
-
-    //计算校验和
-     memcpy(pBuffer+offset,&m_checkSum,GetCheckSumFeildLength());
-     offset += GetCheckSumFeildLength();
-     
-     return offset;
-     */
-    return 0;
-
-}
-
-
+ 
+#endif
 
 Message::Message(/* args */)
 {
     m_msgFlag = 0;              //消息头
     m_msglength = 0;            //消息长度 
+    memset(m_msgReserve,0,sizeof(m_msgReserve));
     memset(m_msgData,0,sizeof(m_msgData));
 }
 Message::~Message()
@@ -453,9 +399,18 @@ void*   Message::GetData(int32 &length)//获取消息数据
 
 void   Message::SetData(void *pBuffer,int32 length)//设置消息数据
 {
-    if(pBuffer == nullptr || length> MAX_MSG_LEN)
+    if(pBuffer == nullptr || length> MAX_MSG_LEN || length < MSG_MIN_LEN)
         return;
-
-    memcpy(m_msgData,pBuffer,length);
-    m_msglength = length;
+    
+    int offset = 0;
+    
+    memcpy(m_msgReserve,pBuffer + offset,MSG_LENGH_RESERVE);
+    offset += MSG_LENGH_RESERVE;
+    
+    int leftLen = length - offset;
+    if(leftLen > 0)
+    {
+        memcpy(m_msgData,pBuffer+offset,leftLen);
+        m_msglength = leftLen;
+    }
 }

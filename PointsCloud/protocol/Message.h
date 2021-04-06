@@ -12,8 +12,6 @@ protected:
     uint32 m_checkSum;             //校验和
     uint16 m_dataLength;           //消息数据段长度：不包含消息头，消息长度，标识，检验和
     int8   m_data[MAX_MSG_LEN];    //消息数据段内容
-protected:
-    //uint32 CheckSum(int8 *pBuffer,int32 length);           //计算校验和
 public:
     MessageBase(/* args */);
     virtual ~MessageBase();
@@ -28,24 +26,10 @@ public:
     int32   SetData(void *pBuffer,uint32 length);//设置消息数据
     uint32  GetCheckSum();
     void    SetCheckSum(uint32 checkSum);
-    uint32  GetMsgLength();         //获取消息实际长度
-
-    
+    uint32  GetMsgLength();         //获取消息实际长度    
 };
-
-////////////////////////智能计算平台(MP)----接口控制模块(IC)//////////////////////////////////////////////////
-//智能计算平台-->接口控制模块：配置消息
-class MPIC_ConfigMessage:public MessageBase
-{
-private:
-    MPIC_Config   m_config;
-public:
-    MPIC_ConfigMessage(/* args */);
-    virtual ~MPIC_ConfigMessage();
-    MPIC_Config GetConfig();
-    void        SetConfig(const MPIC_Config &config);
-};
-
+#if 0
+ 
 //接口控制模块-->智能计算平台：点云数据
 class ICMP_PointCloudMessage:public MessageBase
 {
@@ -81,7 +65,7 @@ public:
     vector<NonHighTensionTarget> GetNonHighTesionTarget();
 
     virtual bool   ParseMessage(int8 *pBuffer,uint32 length);  //解析接收的消息
-    virtual uint32 AssembleMessage(int8*pBuffer,uint32 length);//组装消息包
+    
 };
 
 
@@ -167,7 +151,7 @@ public:
     SPIC_PointsData GetPointsData();
 };
  
-
+#endif
 
 
 class Message
@@ -175,15 +159,30 @@ class Message
 protected:
     uint32 m_msgFlag;              //消息头
     uint16 m_msglength;            //消息长度 
+    int8   m_msgReserve[MSG_LENGH_RESERVE]; //预留长度
     int8   m_msgData[MAX_MSG_LEN]; //消息数据内容
 public:
     Message(/* args */);
     virtual ~Message();
-   
     virtual uint32  GetMsgFlag();
     virtual void    SetMsgFlag(uint32 flag);
     virtual void*   GetData(int32 &length);//获取消息数据
     virtual void    SetData(void *pBuffer,int32 length);//设置消息数据
-    
 };
 
+#if 0
+class PageMessage
+{
+protected:
+    uint32 m_msgFlag;              //消息头
+    uint16 m_msglength;            //消息长度 
+    int8   m_msgData[MAX_MSG_LEN]; //消息数据内容
+public:
+    PageMessage(/* args */);
+    virtual ~PageMessage();
+    virtual uint32  GetMsgFlag();
+    virtual void    SetMsgFlag(uint32 flag);
+    virtual void*   GetData(int32 &length);//获取消息数据
+    virtual void    SetData(void *pBuffer,int32 length);//设置消息数据
+};
+#endif
